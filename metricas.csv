@@ -1,0 +1,5 @@
+Modelo,RMSE ($) [Error],MAE ($) [Error],Confiabilidad (R2 %)
+1. Regresión Lineal,5833.75,4199.22,78.08
+2. Regresión Ridge (L2),5834.36,4200.98,78.07
+3. Árbol de Decisión,5944.62,4012.45,77.24
+4. Random Forest (Ensamble),5374.94,3478.85,81.39
