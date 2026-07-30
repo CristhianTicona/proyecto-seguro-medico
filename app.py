@@ -3,10 +3,15 @@ import pandas as pd
 import numpy as np
 import joblib
 
-# Configuración de la interfaz
-st.set_page_config(page_title="Predicción de Seguro Médico", page_icon="🏥", layout="wide")
+# Configuración de página con diseño ancho
+st.set_page_config(
+    page_title="Sistema de Estimación de Primas Médicas",
+    page_icon="⚕️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# Cargar archivos previamente entrenados
+# Cargar artefactos preentrenados
 @st.cache_resource
 def load_assets():
     scaler = joblib.load('scaler.pkl')
@@ -18,85 +23,122 @@ def load_assets():
 
 scaler, pca, model, columns, df_metrics = load_assets()
 
-# Título de la App
-st.title("🏥 Calculadora de Seguro Médico con Machine Learning")
-st.write("Aplicación interactiva que utiliza **PCA (Reducción de Dimensionalidad)** para predecir primas de seguro.")
+# ==============================================================================
+# PANEL LATERAL: ENTRADA DE DATOS DEL PACIENTE
+# ==============================================================================
+st.sidebar.header("Perfil del Paciente")
+st.sidebar.write("Ajuste las características para calcular la estimación:")
 
-# Dos pestañas: Una para el usuario común y otra para la evaluación técnica
-tab1, tab2 = st.tabs(["🔮 Realizar Predicción", "📊 Comparativa Técnica (Modelos)"])
+age = st.sidebar.slider("Edad", min_value=18, max_value=80, value=35)
+bmi = st.sidebar.number_input("Índice de Masa Corporal (IMC)", min_value=14.0, max_value=55.0, value=26.5, step=0.1)
+children = st.sidebar.selectbox("Número de dependientes (Hijos)", [0, 1, 2, 3, 4, 5])
+sex = st.sidebar.radio("Género biológico", ["Femenino", "Masculino"])
+smoker = st.sidebar.radio("Consumo de tabaco", ["No fumador", "Fumador habitual"])
+region = st.sidebar.selectbox("Región de residencia", ["southeast", "southwest", "northwest", "northeast"])
 
 # ==============================================================================
-# PESTAÑA 1: CALCULADORA INTERACTIVA
+# ENCABEZADO PRINCIPAL
+# ==============================================================================
+st.title("Sistema Analítico de Cotización de Seguros Médicos")
+st.caption("Plataforma interactiva basada en Reducción de Dimensionalidad (PCA) y Aprendizaje Automático.")
+
+tab1, tab2 = st.tabs(["Cotización y Flujo del Dato", "Análisis Comparativo de Modelos"])
+
+# ==============================================================================
+# PESTAÑA 1: RESULTADO Y EXPLICACIÓN DEL PROCESO
 # ==============================================================================
 with tab1:
-    st.subheader("Paso 1: Ingrese las características del paciente")
+    # Preparar el vector de entrada con el One-Hot Encoding correcto
+    input_dict = {col: 0 for col in columns}
+    input_dict['age'] = age
+    input_dict['bmi'] = bmi
+    input_dict['children'] = children
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        age = st.slider("Edad", min_value=18, max_value=100, value=30)
-        bmi = st.number_input("Índice de Masa Corporal (IMC)", min_value=10.0, max_value=60.0, value=25.0, step=0.1)
-        children = st.selectbox("Número de Hijos", [0, 1, 2, 3, 4, 5])
-    
-    with col2:
-        sex = st.radio("Género", ["Masculino", "Femenino"])
-        smoker = st.radio("¿Es fumador activo?", ["No", "Sí"])
-        region = st.selectbox("Región de residencia", ["southeast", "southwest", "northwest", "northeast"])
+    if sex == "Masculino":
+        input_dict['sex_male'] = 1
+    if smoker == "Fumador habitual":
+        input_dict['smoker_yes'] = 1
+        
+    if region == "northwest":
+        input_dict['region_northwest'] = 1
+    elif region == "southeast":
+        input_dict['region_southeast'] = 1
+    elif region == "southwest":
+        input_dict['region_southwest'] = 1
 
-    st.markdown("---")
+    df_input = pd.DataFrame([input_dict])[columns]
     
-    if st.button("🚀 Calcular Estimación de Prima", use_container_width=True):
-        # Mapeo idéntico al One-Hot Encoding del entrenamiento
-        input_dict = {col: 0 for col in columns}
+    # Transformaciones secuenciales
+    input_scaled = scaler.transform(df_input)
+    input_pca = pca.transform(input_scaled)
+    prediccion = model.predict(input_pca)[0]
+
+    # Presentación del resultado
+    col_res1, col_res2 = st.columns([1, 2])
+    
+    with col_res1:
+        st.metric(
+            label="Prima Anual Estimada",
+            value=f"${prediccion:,.2f} USD"
+        )
+        if smoker == "Fumador habitual":
+            st.warning("Factor crítico: El consumo de tabaco es la variable de mayor impacto en la prima.")
+        elif bmi >= 30:
+            st.info("Factor notable: El IMC indica sobrepeso/obesidad, lo que incrementa el riesgo base.")
+        else:
+            st.success("Perfil de riesgo moderado con métricas dentro del rango estándar.")
+
+    with col_res2:
+        st.subheader("Procesamiento Paso a Paso de los Datos")
         
-        input_dict['age'] = age
-        input_dict['bmi'] = bmi
-        input_dict['children'] = children
-        
-        if sex == "Masculino":
-            input_dict['sex_male'] = 1
-        if smoker == "Sí":
-            input_dict['smoker_yes'] = 1
+        with st.expander("1. Normalización de Datos (StandardScaler)", expanded=True):
+            st.write("""
+            **¿Qué hace?** Mide todas las variables en una misma escala.
             
-        if region == "northwest":
-            input_dict['region_northwest'] = 1
-        elif region == "southeast":
-            input_dict['region_southeast'] = 1
-        elif region == "southwest":
-            input_dict['region_southwest'] = 1
-
-        # Mantenemos el orden exacto de las columnas
-        df_input = pd.DataFrame([input_dict])[columns]
-        
-        # Transformación matemática: Normalización + PCA
-        input_scaled = scaler.transform(df_input)
-        input_pca = pca.transform(input_scaled)
-        
-        # Predicción con el modelo cargado
-        prediccion = model.predict(input_pca)[0]
-        
-        # Mostrar resultado al usuario
-        st.success(f"### 💰 Costo Anual Estimado del Seguro: **${prediccion:,.2f} USD**")
-        st.info("💡 *Nota: Los datos ingresados fueron transformados y reducidos mediante PCA antes de pasar por el modelo de Random Forest.*")
+            **¿Por qué es necesario?** La edad va de 18 a 80 años, mientras que el IMC va de 14 a 55, y el hábito de fumar es solo 0 o 1. Sin este paso, el modelo pensaría que la edad es más importante solo porque sus números son más grandes.
+            """)
+            
+        with st.expander("2. Compresión de Información (PCA)"):
+            st.write("""
+            **¿Qué hace?** Funciona como un 'compresor de archivos'. Toma las 8 características del paciente y las sintetiza en componentes principales reteniendo el **85% de la información esencial**.
+            
+            **¿Por qué es necesario?** Elimina la redundancia entre variables y reduce el ruido, permitiendo que el algoritmo prediga con mayor estabilidad.
+            """)
+            
+        with st.expander("3. Modelo de Predicción (Random Forest)"):
+            st.write("""
+            **¿Qué hace?** Evalúa las componentes simplificadas a través de decenas de 'árboles de decisión' interconectados y promedia sus respuestas.
+            
+            **¿Por qué es necesario?** Capta interacciones complejas de la vida real (por ejemplo: el riesgo médico no solo sube por fumar o por la edad aisladamente, sino exponencialmente cuando coinciden ambas).
+            """)
 
 # ==============================================================================
-# PESTAÑA 2: COMPARATIVA TÉCNICA DE MODELOS
+# PESTAÑA 2: EVALUACIÓN Y JUSTIFICACIÓN TÉCNICA
 # ==============================================================================
 with tab2:
-    st.subheader("📊 Métricas de Evaluación de los Modelos")
-    st.write("Resultados obtenidos sobre el conjunto de pruebas (*Test Data*) con reducción de dimensionalidad **PCA**:")
+    st.subheader("Desempeño de Algoritmos Evaluados")
+    st.write("""
+    Se entrenaron cuatro arquitecturas distintas utilizando las mismas variables reducidas por PCA. 
+    A continuación se comparan según su **Nivel de Confiabilidad ($R^2$)** y su **Error Promedio (MAE/RMSE)**:
+    """)
     
-    # Tabla de métricas
+    # Muestra de la tabla procesada en Colab
     st.dataframe(df_metrics, use_container_width=True)
     
     st.markdown("---")
-    st.subheader("📈 Comparación de Confiabilidad ($R^2$)")
     
-    # Gráfico de barras interactivo
-    st.bar_chart(data=df_metrics.set_index("Modelo")["Confiabilidad (R2 %)"])
+    col_chart, col_explain = st.columns([1, 1])
     
-    st.markdown("""
-    **Conclusiones Principales:**
-    * **Ganador:** **Random Forest** obtiene la mayor confiabilidad y el menor error absoluto ($MAE$) al capturar relaciones no lineales (como el impacto simultáneo del hábito de fumar e IMC alto).
-    * **PCA:** Redujo la complejidad del dataset conservando el 85% de la varianza explicada.
-    """)
+    with col_chart:
+        st.subheader("Confiabilidad ($R^2$) por Modelo")
+        st.bar_chart(data=df_metrics.set_index("Modelo")["Confiabilidad (R2 %)"])
+
+    with col_explain:
+        st.subheader("Interpretación Conceptual")
+        st.markdown("""
+        * **Modelos Lineales (Regresión Lineal / Ridge):** Asumen que el costo aumenta de forma constante y recta por cada año de edad o punto de IMC. Esto genera errores altos porque el riesgo médico real no es una línea recta.
+        
+        * **Modelos Basados en Árboles (Random Forest):** Dividen la población en grupos específicos de riesgo según combinaciones de factores. Al combinar múltiples árboles, logran el margen de error más bajo ($MAE$) y la mayor confiabilidad ($R^2$).
+        
+        * **Impacto de PCA:** Permitió reducir la cantidad de variables de entrada sin perder la capacidad predictiva del modelo final.
+        """)
