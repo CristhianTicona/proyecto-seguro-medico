@@ -24,31 +24,33 @@ def load_assets():
 scaler, pca, model, columns, df_metrics = load_assets()
 
 # ==============================================================================
-# PANEL LATERAL: ENTRADA DE DATOS DEL PACIENTE
+# PANEL LATERAL: ENTRADA DE DATOS COMPACTA
 # ==============================================================================
 st.sidebar.header("Perfil del Paciente")
-st.sidebar.write("Ajuste las características para calcular la estimación:")
+st.sidebar.caption("Ajuste las características para la estimación:")
 
 age = st.sidebar.slider("Edad (años)", min_value=18, max_value=80, value=35)
 
-# 1. Calculadora interna de IMC mediante Peso y Altura
-st.sidebar.markdown("---")
-st.sidebar.subheader("Datos Físicos")
-height_cm = st.sidebar.number_input("Estatura (cm)", min_value=120.0, max_value=220.0, value=170.0, step=1.0)
-weight_kg = st.sidebar.number_input("Peso (kg)", min_value=30.0, max_value=200.0, value=70.0, step=0.5)
+# Datos físicos organizados en 2 columnas para ahorrar espacio vertical
+col_h, col_w = st.sidebar.columns(2)
+with col_h:
+    height_cm = st.number_input("Estatura (cm)", min_value=120.0, max_value=220.0, value=170.0, step=1.0)
+with col_w:
+    weight_kg = st.number_input("Peso (kg)", min_value=30.0, max_value=200.0, value=70.0, step=0.5)
 
-# Cálculo automático de IMC
+# Cálculo automático de IMC (sin emoji)
 height_m = height_cm / 100.0
 bmi = weight_kg / (height_m ** 2)
-st.sidebar.info(f"📊 **IMC Calculado:** `{bmi:.1f}` kg/m²")
+st.sidebar.info(f"**IMC Calculado:** `{bmi:.1f}` kg/m²")
 
-st.sidebar.markdown("---")
-children = st.sidebar.selectbox("Número de dependientes (Hijos)", [0, 1, 2, 3, 4, 5])
-sex = st.sidebar.radio("Género biológico", ["Femenino", "Masculino"])
+children = st.sidebar.selectbox("Hijos / Dependientes", [0, 1, 2, 3, 4, 5])
+
+# Opciones de género y tabaco con distribución horizontal
+sex = st.sidebar.radio("Género biológico", ["Femenino", "Masculino"], horizontal=True)
 smoker = st.sidebar.radio("Consumo de tabaco", ["No fumador", "Fumador habitual"])
 
-# 2. Selección de región traducida al español
-region_es = st.sidebar.selectbox(
+# Región mediante botones directos para evitar recortes de pantalla
+region_es = st.sidebar.radio(
     "Región de residencia", 
     ["Sureste", "Suroeste", "Noroeste", "Noreste"]
 )
