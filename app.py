@@ -29,12 +29,29 @@ scaler, pca, model, columns, df_metrics = load_assets()
 st.sidebar.header("Perfil del Paciente")
 st.sidebar.write("Ajuste las características para calcular la estimación:")
 
-age = st.sidebar.slider("Edad", min_value=18, max_value=80, value=35)
-bmi = st.sidebar.number_input("Índice de Masa Corporal (IMC)", min_value=14.0, max_value=55.0, value=26.5, step=0.1)
+age = st.sidebar.slider("Edad (años)", min_value=18, max_value=80, value=35)
+
+# 1. Calculadora interna de IMC mediante Peso y Altura
+st.sidebar.markdown("---")
+st.sidebar.subheader("Datos Físicos")
+height_cm = st.sidebar.number_input("Estatura (cm)", min_value=120.0, max_value=220.0, value=170.0, step=1.0)
+weight_kg = st.sidebar.number_input("Peso (kg)", min_value=30.0, max_value=200.0, value=70.0, step=0.5)
+
+# Cálculo automático de IMC
+height_m = height_cm / 100.0
+bmi = weight_kg / (height_m ** 2)
+st.sidebar.info(f"📊 **IMC Calculado:** `{bmi:.1f}` kg/m²")
+
+st.sidebar.markdown("---")
 children = st.sidebar.selectbox("Número de dependientes (Hijos)", [0, 1, 2, 3, 4, 5])
 sex = st.sidebar.radio("Género biológico", ["Femenino", "Masculino"])
 smoker = st.sidebar.radio("Consumo de tabaco", ["No fumador", "Fumador habitual"])
-region = st.sidebar.selectbox("Región de residencia", ["southeast", "southwest", "northwest", "northeast"])
+
+# 2. Selección de región traducida al español
+region_es = st.sidebar.selectbox(
+    "Región de residencia", 
+    ["Sureste", "Suroeste", "Noroeste", "Noreste"]
+)
 
 # ==============================================================================
 # ENCABEZADO PRINCIPAL
@@ -59,12 +76,14 @@ with tab1:
     if smoker == "Fumador habitual":
         input_dict['smoker_yes'] = 1
         
-    if region == "northwest":
+    # Mapeo de la región en español hacia las columnas internas del modelo
+    if region_es == "Noroeste":
         input_dict['region_northwest'] = 1
-    elif region == "southeast":
+    elif region_es == "Sureste":
         input_dict['region_southeast'] = 1
-    elif region == "southwest":
+    elif region_es == "Suroeste":
         input_dict['region_southwest'] = 1
+    # Nota: 'Noreste' queda implícito en 0 por el drop_first del One-Hot Encoding
 
     df_input = pd.DataFrame([input_dict])[columns]
     
@@ -84,7 +103,7 @@ with tab1:
         if smoker == "Fumador habitual":
             st.warning("Factor crítico: El consumo de tabaco es la variable de mayor impacto en la prima.")
         elif bmi >= 30:
-            st.info("Factor notable: El IMC indica sobrepeso/obesidad, lo que incrementa el riesgo base.")
+            st.info("Factor notable: El IMC calculado indica sobrepeso/obesidad, lo que incrementa el riesgo base.")
         else:
             st.success("Perfil de riesgo moderado con métricas dentro del rango estándar.")
 
@@ -92,15 +111,15 @@ with tab1:
         st.subheader("Procesamiento Paso a Paso de los Datos")
         
         with st.expander("1. Normalización de Datos (StandardScaler)", expanded=True):
-            st.write("""
+            st.write(f"""
             **¿Qué hace?** Mide todas las variables en una misma escala.
             
-            **¿Por qué es necesario?** La edad va de 18 a 80 años, mientras que el IMC va de 14 a 55, y el hábito de fumar es solo 0 o 1. Sin este paso, el modelo pensaría que la edad es más importante solo porque sus números son más grandes.
+            **En este caso:** La edad ({age} años), la estatura ({height_cm:.0f} cm), el peso ({weight_kg:.1f} kg) y el IMC calculado ({bmi:.1f}) se convierten a una escala estandarizada. Esto evita que los números grandes distorsionen la predicción.
             """)
             
         with st.expander("2. Compresión de Información (PCA)"):
             st.write("""
-            **¿Qué hace?** Funciona como un 'compresor de archivos'. Toma las 8 características del paciente y las sintetiza en componentes principales reteniendo el **85% de la información esencial**.
+            **¿Qué hace?** Funciona como un 'compresor de archivos'. Toma las 8 características procesadas del paciente y las sintetiza en componentes principales reteniendo el **85% de la información esencial**.
             
             **¿Por qué es necesario?** Elimina la redundancia entre variables y reduce el ruido, permitiendo que el algoritmo prediga con mayor estabilidad.
             """)
