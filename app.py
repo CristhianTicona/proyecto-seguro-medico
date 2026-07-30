@@ -102,12 +102,30 @@ with tab1:
             label="Prima Anual Estimada",
             value=f"${prediccion:,.2f} USD"
         )
-        if smoker == "Fumador habitual":
-            st.warning("Factor crítico: El consumo de tabaco es la variable de mayor impacto en la prima.")
-        elif bmi >= 30:
-            st.info("Factor notable: El IMC calculado indica sobrepeso/obesidad, lo que incrementa el riesgo base.")
+        
+        # Evaluación dinámica de múltiples factores de riesgo
+        
+        # 1. Caso crítico: Combinación de Fumador + Obesidad
+        if smoker == "Fumador habitual" and bmi >= 30:
+            st.error("Riesgo Máximo: La combinación de tabaco e IMC elevado es el factor de mayor penalización en la póliza.")
         else:
-            st.success("Perfil de riesgo moderado con métricas dentro del rango estándar.")
+            # 2. Factores individuales
+            if smoker == "Fumador habitual":
+                st.warning("Factor crítico: El consumo de tabaco incrementa significativamente el costo base.")
+            if bmi >= 30:
+                st.info("Factor notable: El IMC calculado indica sobrepeso/obesidad, elevando el riesgo base.")
+        
+        # 3. Factor de edad
+        if age >= 50:
+            st.info("Factor de edad: A partir de los 50 años las tasas base de salud se incrementan por riesgo biológico.")
+            
+        # 4. Factor de dependientes
+        if children >= 3:
+            st.caption("Nota: Tener 3 o más dependientes añade un margen por cobertura familiar.")
+            
+        # 5. Perfil saludable
+        if smoker != "Fumador habitual" and bmi < 30 and age < 50:
+            st.success("Perfil de riesgo bajo: Métricas dentro del rango óptimo.")
 
     with col_res2:
         st.subheader("Procesamiento Paso a Paso de los Datos")
